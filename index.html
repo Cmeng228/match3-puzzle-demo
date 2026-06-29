@@ -1,0 +1,1824 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>三消解谜 Demo</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef3f8;
+      --ink: #17202a;
+      --muted: #5d6b7a;
+      --line: rgba(23, 32, 42, .14);
+      --accent: #2f6df6;
+      --accent-2: #00a88f;
+      --warn: #c7512f;
+      --tile-red: #e95454;
+      --tile-green: #20a86b;
+      --tile-blue: #3178e8;
+      --shadow: 0 18px 42px rgba(23, 32, 42, .14);
+      --radius: 8px;
+      --cols: 6;
+      --rows: 6;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(47, 109, 246, .16) 0 18%, transparent 34%),
+        radial-gradient(circle at 86% 18%, rgba(0, 168, 143, .13) 0 16%, transparent 32%),
+        linear-gradient(180deg, #f7fbff 0%, #eaf4f1 58%, #dfe9f3 100%);
+    }
+
+    button {
+      font: inherit;
+      min-height: 44px;
+      border: 0;
+      border-radius: var(--radius);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid rgba(47, 109, 246, .38);
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .48;
+    }
+
+    .app {
+      width: min(100%, 480px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 52px;
+      margin-bottom: 10px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      font-weight: 900;
+      color: #123a42;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, .56);
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: #2f5e64;
+      font-size: 12px;
+      line-height: 1.35;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+    }
+
+    .status-pill {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .82);
+      color: #23535c;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .screen {
+      display: none;
+      flex: 1;
+    }
+
+    .screen.is-active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel {
+      border: 1px solid rgba(23, 32, 42, .12);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .88);
+      box-shadow: var(--shadow);
+    }
+
+    .home-panel {
+      padding: 22px 18px 18px;
+    }
+
+    .home-panel h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .home-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .difficulty-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .difficulty {
+      width: 100%;
+      padding: 13px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      text-align: left;
+      border: 1px solid rgba(23, 32, 42, .12);
+      background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
+      color: var(--ink);
+      box-shadow: 0 8px 18px rgba(23, 32, 42, .07);
+    }
+
+    .difficulty[aria-pressed="true"] {
+      border-color: rgba(47, 109, 246, .62);
+      background: #edf4ff;
+    }
+
+    .difficulty b {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .difficulty span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .difficulty em {
+      align-self: center;
+      min-width: 54px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--ink);
+      font-size: 12px;
+      font-style: normal;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .rule-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 14px 0 0;
+    }
+
+    .rule-item {
+      min-height: 62px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fbff;
+    }
+
+    .rule-item b {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .rule-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .ghost-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 14px;
+      font-weight: 900;
+      border: 1px solid transparent;
+      transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+    }
+
+    .primary-btn {
+      width: 100%;
+      margin-top: 14px;
+      background: linear-gradient(180deg, #4d82ff 0%, #2f6df6 100%);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(47, 109, 246, .22);
+    }
+
+    .secondary-btn {
+      border-color: rgba(23, 32, 42, .12);
+      background: linear-gradient(180deg, #ffffff 0%, #eef5f6 100%);
+      color: #173d46;
+    }
+
+    .ghost-btn {
+      border-color: rgba(23, 32, 42, .1);
+      background: rgba(255, 255, 255, .68);
+      color: #284b5b;
+    }
+
+    .primary-btn:active,
+    .secondary-btn:active,
+    .ghost-btn:active,
+    .difficulty:active {
+      transform: scale(.98);
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .game-header {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      min-height: 54px;
+      padding: 8px 6px;
+      border: 1px solid rgba(23, 32, 42, .1);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .82);
+      text-align: center;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 19px;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .board-wrap {
+      position: relative;
+      padding: clamp(12px, 3vw, 18px);
+      margin-bottom: 10px;
+      border: 1px solid rgba(23, 32, 42, .14);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, .84), rgba(230, 238, 243, .9));
+      box-shadow: var(--shadow);
+    }
+
+    .board {
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+      gap: clamp(4px, 1.2vw, 7px);
+      aspect-ratio: var(--cols) / var(--rows);
+      transition: transform .18s ease;
+    }
+
+    .board.is-pulsing {
+      transform: scale(1.01);
+    }
+
+    .cell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      border-radius: 8px;
+      border: 0;
+      background: transparent;
+      transition: transform .18s ease, opacity .18s ease, filter .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .cell.empty {
+      border: 1px dashed rgba(23, 32, 42, .12);
+      background: rgba(23, 32, 42, .04);
+      opacity: .72;
+    }
+
+    .cell.tile {
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, .65);
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, .58), inset 0 -4px 0 rgba(0, 0, 0, .12), 0 8px 14px rgba(23, 32, 42, .16);
+    }
+
+    .cell.tile::after {
+      content: "";
+      position: absolute;
+      inset: 14% 18% auto 18%;
+      height: 22%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .34);
+    }
+
+    .cell.red { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #ff8580 0%, var(--tile-red) 56%, #bd3636 100%); }
+    .cell.green { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #5ee4a5 0%, var(--tile-green) 58%, #13794c 100%); }
+    .cell.blue { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #76a6ff 0%, var(--tile-blue) 58%, #1d56b3 100%); }
+
+    .cell.selected {
+      border-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255, 238, 130, .78), 0 9px 18px rgba(47, 109, 246, .22);
+      transform: translateY(-2px);
+    }
+
+    .cell.hint {
+      border-color: #fff;
+      box-shadow: 0 0 0 4px rgba(255, 184, 64, .78), 0 10px 20px rgba(255, 184, 64, .25);
+      transform: translateY(-2px);
+    }
+
+    .cell.is-clearing {
+      opacity: 0;
+      filter: brightness(1.28) saturate(1.18);
+      transform: scale(.42) rotate(8deg);
+      pointer-events: none;
+    }
+
+    .cell.is-fall-source {
+      visibility: hidden;
+    }
+
+    .cell:disabled {
+      cursor: default;
+    }
+
+    .clear-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .burst-flash,
+    .burst-ring,
+    .shard {
+      position: absolute;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+      will-change: transform, opacity;
+    }
+
+    .burst-flash {
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255, 255, 255, .95) 0%, rgba(255, 232, 140, .68) 32%, rgba(255, 255, 255, 0) 72%);
+      mix-blend-mode: screen;
+      opacity: .92;
+      transform: translate(var(--x), var(--y)) scale(.24);
+      transition: transform var(--clear-duration, 320ms) cubic-bezier(.16, 1, .3, 1), opacity var(--clear-duration, 320ms) ease-out;
+    }
+
+    .burst-ring {
+      border: 2px solid rgba(255, 255, 255, .92);
+      border-radius: 999px;
+      box-shadow: 0 0 0 2px rgba(255, 206, 84, .28), 0 0 18px rgba(255, 198, 76, .45);
+      opacity: .9;
+      transform: translate(var(--x), var(--y)) scale(.34);
+      transition: transform var(--clear-duration, 320ms) cubic-bezier(.16, 1, .3, 1), opacity var(--clear-duration, 320ms) ease-out;
+    }
+
+    .shard {
+      width: var(--shard-size, 9px);
+      height: calc(var(--shard-size, 9px) * .68);
+      border-radius: 2px;
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14), 0 4px 8px rgba(23, 32, 42, .15);
+      opacity: .96;
+      transform: translate(var(--x), var(--y)) rotate(var(--r0));
+      transition: transform var(--clear-duration, 320ms) cubic-bezier(.16, 1, .3, 1), opacity var(--clear-duration, 320ms) ease-out;
+    }
+
+    .shard.red { background: linear-gradient(180deg, #ffb0a8 0%, var(--tile-red) 100%); }
+    .shard.green { background: linear-gradient(180deg, #91ecc2 0%, var(--tile-green) 100%); }
+    .shard.blue { background: linear-gradient(180deg, #abc8ff 0%, var(--tile-blue) 100%); }
+
+    .fall-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    .falling-tile {
+      position: absolute;
+      left: 0;
+      top: 0;
+      border: 0;
+      border-radius: 8px;
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, .58), inset 0 -4px 0 rgba(0, 0, 0, .12), 0 8px 14px rgba(23, 32, 42, .16);
+      transition: transform var(--fall-duration, 300ms) cubic-bezier(.22, 1, .36, 1);
+      will-change: transform;
+    }
+
+    .falling-tile::after {
+      display: none;
+    }
+
+    .falling-tile.red { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #ff8580 0%, var(--tile-red) 56%, #bd3636 100%); }
+    .falling-tile.green { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #5ee4a5 0%, var(--tile-green) 58%, #13794c 100%); }
+    .falling-tile.blue { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #76a6ff 0%, var(--tile-blue) 58%, #1d56b3 100%); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .burst-flash,
+      .burst-ring,
+      .shard,
+      .falling-tile {
+        transition-duration: 1ms;
+      }
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid rgba(23, 32, 42, .1);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .82);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .message strong {
+      color: var(--ink);
+    }
+
+    .log-panel {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid rgba(23, 32, 42, .1);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .78);
+    }
+
+    .log-panel h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .log-list {
+      display: grid;
+      gap: 6px;
+      max-height: 104px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .log-item {
+      padding: 7px 8px;
+      border-radius: 6px;
+      background: rgba(235, 251, 245, .78);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .result {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(23, 32, 42, .48);
+    }
+
+    .result.is-active {
+      display: grid;
+    }
+
+    .result-card {
+      width: min(100%, 420px);
+      position: relative;
+      padding: 24px 20px 20px;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #ffffff 0%, #fff7e7 100%);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, .22);
+    }
+
+    .result-card h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .result-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .focus-banner {
+      display: none;
+      margin-bottom: 10px;
+      padding: 9px 10px;
+      border: 1px solid rgba(47, 109, 246, .32);
+      border-radius: var(--radius);
+      background: #edf4ff;
+      color: #21499a;
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+
+    body.has-focus .focus-banner {
+      display: block;
+    }
+
+    body.has-focus .focus-muted {
+      opacity: .28;
+      pointer-events: none;
+      filter: grayscale(.45);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (min-width: 720px) {
+      .app {
+        padding-top: 22px;
+      }
+    }
+
+    @media (max-width: 374px) {
+      .brand h1 { font-size: 20px; }
+      .controls { grid-template-columns: 1fr; }
+      .rule-list { grid-template-columns: 1fr; }
+      .cell { border-radius: 6px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>三消解谜 Demo</h1>
+        <p>有限方块，不补新块，清空棋盘过关</p>
+      </div>
+      <div class="status-pill" id="seedLabel">未生成</div>
+    </header>
+
+    <div class="focus-banner" id="focusBanner"></div>
+
+    <section class="screen is-active" id="homeScreen" data-screen="SCR_HOME">
+      <div class="panel home-panel">
+        <h2>选择难度</h2>
+        <p>每局会随机生成一个已校验可通关的残局。交换相邻方块，形成直线、L 形、T 形或十字匹配即可消除。</p>
+
+        <div class="difficulty-grid" id="difficultyGrid" data-focus="start_game"></div>
+
+        <button class="primary-btn" id="startBtn" data-action="start_game" data-focus="start_game" aria-label="开始游戏">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+          开始游戏
+        </button>
+
+        <div class="rule-list" aria-label="规则摘要">
+          <div class="rule-item"><b>交换规则</b><span>仅允许上下左右相邻交换，无匹配则回退。</span></div>
+          <div class="rule-item"><b>消除规则</b><span>3/4/5 连、L 形、T 形、十字形均有效。</span></div>
+          <div class="rule-item"><b>下落规则</b><span>没有阻挡格，同列方块整体下落补位。</span></div>
+          <div class="rule-item"><b>失败规则</b><span>棋盘非空且无可行交换时立即失败。</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="gameScreen" data-screen="SCR_GAME">
+      <div class="game-header">
+        <div class="stat"><b id="moveCount">0</b><span>有效步数</span></div>
+        <div class="stat"><b id="blockCount">0</b><span>剩余方块</span></div>
+        <div class="stat" data-focus="remaining_moves"><b id="remainingMoves">0</b><span>可行交换</span></div>
+      </div>
+
+      <div class="board-wrap" data-focus="board_swap match_resolve">
+        <div class="board" id="board" role="grid" aria-label="三消棋盘"></div>
+      </div>
+
+      <div class="controls">
+        <button class="secondary-btn" id="hintBtn" data-action="hint_next" data-focus="hint_next" aria-label="提示下一步">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 0-4 12c.7.6 1 1.4 1 2h6c0-.6.3-1.4 1-2a7 7 0 0 0-4-12z"></path></svg>
+          提示
+        </button>
+        <button class="secondary-btn" id="undoBtn" data-action="undo_once" data-focus="undo_once" aria-label="撤销一步">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-2"></path></svg>
+          撤销
+        </button>
+        <button class="ghost-btn" id="restartBtn" data-action="restart_level" data-focus="restart_level" aria-label="重新开始">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
+          重开
+        </button>
+      </div>
+
+      <div class="message" id="message" role="status" aria-live="polite"></div>
+
+      <section class="log-panel" data-focus="move_log">
+        <h2>操作日志</h2>
+        <div class="log-list" id="logList"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="result" id="resultModal" data-screen="MOD_RESULT" aria-modal="true" role="dialog" aria-labelledby="resultTitle">
+    <div class="result-card" data-focus="result_restart">
+      <h2 id="resultTitle">结果</h2>
+      <p id="resultText"></p>
+      <div class="result-actions">
+        <button class="secondary-btn" id="resultRestartBtn" data-action="result_restart" data-focus="result_restart">重新开始</button>
+        <button class="primary-btn" id="newLevelBtn" data-action="new_level" data-focus="start_game">新关卡</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = ["red", "green", "blue"];
+    const COLOR_NAMES = { red: "红", green: "绿", blue: "蓝" };
+    const FOCUS_LABELS = {
+      start_game: "专注模式：开始并生成可解关卡",
+      board_swap: "专注模式：相邻交换与无效回退",
+      match_resolve: "专注模式：匹配识别、消除与连锁下落",
+      hint_next: "专注模式：下一步提示",
+      undo_once: "专注模式：单步撤销",
+      restart_level: "专注模式：重新开始",
+      remaining_moves: "专注模式：剩余可行解显示",
+      result_restart: "专注模式：结果弹窗操作",
+      move_log: "专注模式：操作日志"
+    };
+
+    const DIFFICULTIES = {
+      simple: {
+        name: "简单",
+        badge: "6x6",
+        desc: "首步陷阱较少，用于练习观察消除顺序。",
+        width: 6,
+        height: 6,
+        blocks: 24,
+        maxDepth: 8,
+        maxNodes: 14000,
+        searchAttempts: 120,
+        preferFallback: false,
+        minMoves: 5,
+        minBadRatio: 0.45,
+        fallback: [
+          "..G..B",
+          ".GB..G",
+          ".BB..R",
+          ".BRGRG",
+          ".GBRBB",
+          "GBRRBG"
+        ],
+        fallbackSolution: [
+          [2, 4, 3, 4],
+          [1, 4, 2, 4],
+          [5, 2, 5, 3],
+          [4, 4, 4, 5],
+          [2, 5, 3, 5]
+        ]
+      },
+      normal: {
+        name: "中等",
+        badge: "6x7",
+        desc: "可行首步更多，但错误顺序更容易进入失败。",
+        width: 6,
+        height: 7,
+        blocks: 30,
+        maxDepth: 10,
+        maxNodes: 22000,
+        searchAttempts: 90,
+        preferFallback: false,
+        minMoves: 6,
+        minBadRatio: 0.55,
+        fallback: [
+          "......",
+          "...GG.",
+          "RB.GG.",
+          "GBGRRB",
+          "GGRRGR",
+          "BGRBGB",
+          "GRBGBB"
+        ],
+        fallbackSolution: [
+          [0, 5, 1, 5],
+          [2, 5, 2, 6],
+          [5, 3, 5, 4],
+          [3, 6, 4, 6],
+          [2, 6, 3, 6],
+          [1, 6, 2, 6]
+        ]
+      },
+      hard: {
+        name: "困难",
+        badge: "7x8",
+        desc: "首步陷阱更多，需要规划消除顺序才能清空。",
+        width: 7,
+        height: 8,
+        blocks: 39,
+        maxDepth: 13,
+        maxNodes: 36000,
+        searchAttempts: 70,
+        preferFallback: false,
+        minMoves: 8,
+        minBadRatio: 0.65,
+        fallback: [
+          "....R..",
+          ".B..B.G",
+          ".B..GRR",
+          ".G..BGR",
+          "GB.BBGG",
+          "BGBRGRB",
+          "GBBGGRB",
+          "BBGGRGR"
+        ],
+        fallbackSolution: [
+          [4, 4, 5, 4],
+          [4, 7, 5, 7],
+          [0, 6, 1, 6],
+          [4, 5, 4, 6],
+          [1, 7, 2, 7],
+          [4, 7, 5, 7],
+          [5, 7, 6, 7],
+          [5, 7, 6, 7]
+        ]
+      }
+    };
+
+    const app = {
+      difficulty: "simple",
+      width: 6,
+      height: 6,
+      board: [],
+      initialBoard: [],
+      undoSnapshot: null,
+      initialSolution: [],
+      solutionQueue: [],
+      selected: null,
+      hintMove: null,
+      clearingCells: new Set(),
+      fallingSources: new Set(),
+      moveCount: 0,
+      remainingMoves: 0,
+      state: "home",
+      seed: 0,
+      logs: [],
+      focus: new URLSearchParams(location.search).get("focus") || ""
+    };
+
+    const el = {
+      homeScreen: document.getElementById("homeScreen"),
+      gameScreen: document.getElementById("gameScreen"),
+      difficultyGrid: document.getElementById("difficultyGrid"),
+      startBtn: document.getElementById("startBtn"),
+      board: document.getElementById("board"),
+      moveCount: document.getElementById("moveCount"),
+      blockCount: document.getElementById("blockCount"),
+      remainingMoves: document.getElementById("remainingMoves"),
+      seedLabel: document.getElementById("seedLabel"),
+      message: document.getElementById("message"),
+      logList: document.getElementById("logList"),
+      hintBtn: document.getElementById("hintBtn"),
+      undoBtn: document.getElementById("undoBtn"),
+      restartBtn: document.getElementById("restartBtn"),
+      resultModal: document.getElementById("resultModal"),
+      resultTitle: document.getElementById("resultTitle"),
+      resultText: document.getElementById("resultText"),
+      resultRestartBtn: document.getElementById("resultRestartBtn"),
+      newLevelBtn: document.getElementById("newLevelBtn"),
+      focusBanner: document.getElementById("focusBanner")
+    };
+
+    function mulberry32(seed) {
+      let t = seed >>> 0;
+      return function next() {
+        t += 0x6D2B79F5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function cloneBoard(board) {
+      return board.map(cell => ({ color: cell.color }));
+    }
+
+    function idx(x, y, width = app.width) {
+      return y * width + x;
+    }
+
+    function coord(index, width = app.width) {
+      return { x: index % width, y: Math.floor(index / width) };
+    }
+
+    function shuffle(list, random) {
+      const copy = list.slice();
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function emptyBoard(width, height) {
+      return Array.from({ length: width * height }, () => ({ color: null }));
+    }
+
+    function buildCandidate(config, seed) {
+      const random = mulberry32(seed);
+      const board = emptyBoard(config.width, config.height);
+      const heights = Array.from({ length: config.width }, () => 0);
+      const weights = Array.from({ length: config.width }, (_, x) => 1 + Math.abs(x - (config.width - 1) / 2) * 0.2);
+
+      for (let n = 0; n < config.blocks; n += 1) {
+        const choices = heights.map((height, x) => height < config.height ? x : -1).filter(x => x >= 0);
+        if (!choices.length) break;
+        const total = choices.reduce((sum, x) => sum + weights[x], 0);
+        let roll = random() * total;
+        let picked = choices[choices.length - 1];
+        for (const x of choices) {
+          roll -= weights[x];
+          if (roll <= 0) {
+            picked = x;
+            break;
+          }
+        }
+        heights[picked] += 1;
+      }
+
+      for (let x = 0; x < config.width; x += 1) {
+        for (let k = 0; k < heights[x]; k += 1) {
+          board[idx(x, config.height - 1 - k, config.width)].color = COLORS[Math.floor(random() * COLORS.length)];
+        }
+      }
+      return board;
+    }
+
+    function boardFromRows(rows) {
+      const height = rows.length;
+      const width = rows[0].length;
+      const board = emptyBoard(width, height);
+      rows.forEach((row, y) => {
+        row.split("").forEach((char, x) => {
+          board[idx(x, y, width)].color = char === "." ? null : ({ R: "red", G: "green", B: "blue" }[char] || null);
+        });
+      });
+      applyGravity(board, width, height);
+      return board;
+    }
+
+    function variantRows(rows, seed) {
+      const random = mulberry32(seed);
+      const map = {};
+      shuffle(["R", "G", "B"], random).forEach((next, index) => {
+        map[["R", "G", "B"][index]] = next;
+      });
+
+      let transformed = rows.map(row => row.split("").map(char => map[char] || char).join(""));
+      const mirrored = random() > 0.5;
+      if (mirrored) transformed = transformed.map(row => row.split("").reverse().join(""));
+      return { rows: transformed, mirrored };
+    }
+
+    function mirrorSolution(solution, width) {
+      return solution.map(([x1, y1, x2, y2]) => [width - 1 - x1, y1, width - 1 - x2, y2]);
+    }
+
+    function verifiedFallbackLevel(config, baseSeed, attemptCount) {
+      const variantAttempts = 18;
+      for (let variant = 0; variant < variantAttempts; variant += 1) {
+        const seed = baseSeed + 104729 + variant * 3571;
+        const variantData = variantRows(config.fallback, seed);
+        const board = boardFromRows(variantData.rows);
+        const solutionCoords = variantData.mirrored ? mirrorSolution(config.fallbackSolution, config.width) : config.fallbackSolution;
+        const solution = solutionFromCoords(solutionCoords, config.width);
+        const proof = verifySolution(board, solution, config.width, config.height);
+        const moves = enumerateMoves(board, config.width, config.height).length;
+        if (proof.ok && moves > 0 && findMatches(board, config.width, config.height).size === 0) {
+          return {
+            board,
+            seed,
+            solution,
+            attemptCount,
+            analysis: { ok: true, solution, proof, good: null, bad: null, moves, verifiedTemplate: true },
+            fallback: true
+          };
+        }
+      }
+
+      const board = boardFromRows(config.fallback);
+      const solution = solutionFromCoords(config.fallbackSolution, config.width);
+      const proof = verifySolution(board, solution, config.width, config.height);
+      const moves = enumerateMoves(board, config.width, config.height).length;
+      if (!proof.ok || moves === 0 || findMatches(board, config.width, config.height).size > 0) throw new Error("内置关卡校验失败，请检查模板。");
+      const analysis = { ok: true, solution, proof, good: null, bad: null, moves, verifiedTemplate: true };
+      return { board, seed: baseSeed, solution: analysis.solution, attemptCount, analysis, fallback: true };
+    }
+
+    function solutionFromCoords(coords, width) {
+      return coords.map(([x1, y1, x2, y2]) => ({ from: idx(x1, y1, width), to: idx(x2, y2, width) }));
+    }
+
+    function analyzeDifficulty(board, config) {
+      const solution = findSolution(board, config.width, config.height, config.maxDepth, config.maxNodes);
+      const proof = verifySolution(board, solution, config.width, config.height);
+      if (!solution || !proof.ok || solution.length < config.minMoves) return { ok: false, solution, proof, good: 0, bad: 0, moves: 0 };
+
+      const firstMoves = enumerateMoves(board, config.width, config.height);
+      let good = 0;
+      let bad = 0;
+      for (const move of firstMoves) {
+        const follow = findSolution(move.board, config.width, config.height, Math.max(0, config.maxDepth - 1), Math.floor(config.maxNodes / 3));
+        if (follow) good += 1;
+        else bad += 1;
+      }
+
+      const badRatio = bad / Math.max(1, firstMoves.length);
+      return {
+        ok: firstMoves.length >= 2 && good >= 1 && bad >= 1 && badRatio >= config.minBadRatio,
+        solution,
+        proof,
+        good,
+        bad,
+        moves: firstMoves.length,
+        badRatio
+      };
+    }
+
+    function verifySolution(board, solution, width, height) {
+      if (!Array.isArray(solution) || solution.length === 0) return { ok: false, finalBlocks: countBlocks(board), failedStep: 0 };
+
+      let current = cloneBoard(board);
+      for (let stepIndex = 0; stepIndex < solution.length; stepIndex += 1) {
+        const step = solution[stepIndex];
+        const result = simulateMove(current, step.from, step.to, width, height);
+        if (!result) return { ok: false, finalBlocks: countBlocks(current), failedStep: stepIndex + 1 };
+        current = result.board;
+      }
+
+      const finalBlocks = countBlocks(current);
+      return { ok: finalBlocks === 0, finalBlocks, failedStep: null };
+    }
+
+    function validateGeneratedLevel(board, config, options = {}) {
+      const blockCount = countBlocks(board);
+      if (blockCount <= 0 || blockCount > 99) return null;
+      if (findMatches(board, config.width, config.height).size > 0) return null;
+      if (enumerateMoves(board, config.width, config.height).length === 0) return null;
+
+      const analysis = analyzeDifficulty(board, config);
+      if (!analysis.solution || !analysis.proof || !analysis.proof.ok) return null;
+      if (!options.allowTemplate && !analysis.ok) return null;
+
+      if (options.allowTemplate) {
+        analysis.ok = true;
+        analysis.verifiedTemplate = true;
+      }
+      return analysis;
+    }
+
+    function generateLevel(difficulty) {
+      const config = DIFFICULTIES[difficulty];
+      const baseSeed = Math.floor(Date.now() % 100000000);
+      if (config.preferFallback) return verifiedFallbackLevel(config, baseSeed, 1);
+
+      for (let attempt = 0; attempt < config.searchAttempts; attempt += 1) {
+        const seed = baseSeed + attempt * 7919 + Math.floor(Math.random() * 997);
+        const board = buildCandidate(config, seed);
+        const analysis = validateGeneratedLevel(board, config);
+        if (analysis) {
+          return { board, seed, solution: analysis.solution, attemptCount: attempt + 1, analysis };
+        }
+      }
+
+      return verifiedFallbackLevel(config, baseSeed, config.searchAttempts);
+    }
+    function serialize(board) {
+      return board.map(cell => cell.color ? cell.color[0] : ".").join("");
+    }
+
+    function countBlocks(board) {
+      return board.reduce((total, cell) => total + (cell.color ? 1 : 0), 0);
+    }
+
+    function isAdjacent(a, b, width = app.width) {
+      const ca = coord(a, width);
+      const cb = coord(b, width);
+      return Math.abs(ca.x - cb.x) + Math.abs(ca.y - cb.y) === 1;
+    }
+
+    function findMatches(board, width = app.width, height = app.height) {
+      const matches = new Set();
+
+      for (let y = 0; y < height; y += 1) {
+        let runColor = null;
+        let runStart = 0;
+        let runLength = 0;
+
+        for (let x = 0; x <= width; x += 1) {
+          const cell = x < width ? board[idx(x, y, width)] : null;
+          const color = cell ? cell.color : null;
+          if (color && color === runColor) {
+            runLength += 1;
+          } else {
+            if (runColor && runLength >= 3) {
+              for (let rx = runStart; rx < runStart + runLength; rx += 1) matches.add(idx(rx, y, width));
+            }
+            runColor = color;
+            runStart = x;
+            runLength = color ? 1 : 0;
+          }
+        }
+      }
+
+      for (let x = 0; x < width; x += 1) {
+        let runColor = null;
+        let runStart = 0;
+        let runLength = 0;
+
+        for (let y = 0; y <= height; y += 1) {
+          const cell = y < height ? board[idx(x, y, width)] : null;
+          const color = cell ? cell.color : null;
+          if (color && color === runColor) {
+            runLength += 1;
+          } else {
+            if (runColor && runLength >= 3) {
+              for (let ry = runStart; ry < runStart + runLength; ry += 1) matches.add(idx(x, ry, width));
+            }
+            runColor = color;
+            runStart = y;
+            runLength = color ? 1 : 0;
+          }
+        }
+      }
+
+      return matches;
+    }
+
+    function applyGravity(board, width = app.width, height = app.height) {
+      for (let x = 0; x < width; x += 1) {
+        const colors = [];
+        for (let y = height - 1; y >= 0; y -= 1) {
+          const color = board[idx(x, y, width)].color;
+          if (color) colors.push(color);
+        }
+        for (let y = height - 1; y >= 0; y -= 1) {
+          board[idx(x, y, width)].color = colors[height - 1 - y] || null;
+        }
+      }
+    }
+
+    function swapColors(board, a, b) {
+      const temp = board[a].color;
+      board[a].color = board[b].color;
+      board[b].color = temp;
+    }
+
+    function resolveBoard(board, width = app.width, height = app.height) {
+      let totalCleared = 0;
+      let chainCount = 0;
+
+      while (true) {
+        const matches = findMatches(board, width, height);
+        if (matches.size === 0) break;
+        chainCount += 1;
+        totalCleared += matches.size;
+        matches.forEach(index => {
+          board[index].color = null;
+        });
+        applyGravity(board, width, height);
+      }
+
+      return { totalCleared, chainCount, cleared: totalCleared, chain: chainCount };
+    }
+
+    function gravityPlan(board, width = app.width, height = app.height) {
+      const next = emptyBoard(width, height);
+      const moves = [];
+
+      for (let x = 0; x < width; x += 1) {
+        let targetY = height - 1;
+        for (let y = height - 1; y >= 0; y -= 1) {
+          const sourceIndex = idx(x, y, width);
+          const color = board[sourceIndex].color;
+          if (!color) continue;
+          const targetIndex = idx(x, targetY, width);
+          next[targetIndex].color = color;
+          if (targetIndex !== sourceIndex) {
+            moves.push({ from: sourceIndex, to: targetIndex, color });
+          }
+          targetY -= 1;
+        }
+      }
+
+      return { board: next, moves };
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function motionDuration(normalMs) {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : normalMs;
+    }
+
+    function clearTransientVisuals() {
+      app.clearingCells = new Set();
+      app.fallingSources = new Set();
+    }
+
+    function spawnBurstEffects(matches, duration) {
+      const boardRect = el.board.getBoundingClientRect();
+      const layer = document.createElement("div");
+      layer.className = "clear-layer";
+      el.board.appendChild(layer);
+
+      matches.forEach(index => {
+        const cell = el.board.querySelector(`[data-index="${index}"]`);
+        const color = app.board[index].color;
+        if (!cell || !color) return;
+
+        const rect = cell.getBoundingClientRect();
+        const x = rect.left - boardRect.left;
+        const y = rect.top - boardRect.top;
+        const centerX = x + rect.width / 2;
+        const centerY = y + rect.height / 2;
+        const flashSize = Math.max(rect.width, rect.height) * 1.55;
+
+        const flash = document.createElement("div");
+        flash.className = "burst-flash";
+        flash.style.width = `${flashSize}px`;
+        flash.style.height = `${flashSize}px`;
+        flash.style.setProperty("--clear-duration", `${duration}ms`);
+        flash.style.setProperty("--x", `${centerX - flashSize / 2}px`);
+        flash.style.setProperty("--y", `${centerY - flashSize / 2}px`);
+        layer.appendChild(flash);
+
+        const ring = document.createElement("div");
+        ring.className = "burst-ring";
+        ring.style.width = `${flashSize * .72}px`;
+        ring.style.height = `${flashSize * .72}px`;
+        ring.style.setProperty("--clear-duration", `${duration}ms`);
+        ring.style.setProperty("--x", `${centerX - flashSize * .36}px`);
+        ring.style.setProperty("--y", `${centerY - flashSize * .36}px`);
+        layer.appendChild(ring);
+
+        const shardCount = 8;
+        for (let i = 0; i < shardCount; i += 1) {
+          const angle = (Math.PI * 2 * i) / shardCount + (index % 3) * .18;
+          const distance = rect.width * (.48 + (i % 3) * .16);
+          const shard = document.createElement("div");
+          shard.className = `shard ${color}`;
+          shard.style.setProperty("--clear-duration", `${duration}ms`);
+          shard.style.setProperty("--shard-size", `${Math.max(7, rect.width * (.13 + (i % 2) * .04))}px`);
+          shard.style.setProperty("--x", `${centerX}px`);
+          shard.style.setProperty("--y", `${centerY}px`);
+          shard.style.setProperty("--r0", `${angle * 57.3}deg`);
+          shard.dataset.x = String(centerX);
+          shard.dataset.y = String(centerY);
+          shard.dataset.dx = String(Math.cos(angle) * distance);
+          shard.dataset.dy = String(Math.sin(angle) * distance - rect.height * .18);
+          shard.dataset.rot = String(angle * 57.3 + 120 + i * 19);
+          layer.appendChild(shard);
+        }
+      });
+
+      requestAnimationFrame(() => {
+        layer.querySelectorAll(".burst-flash").forEach(node => {
+          node.style.opacity = "0";
+          node.style.transform = `translate(${node.style.getPropertyValue("--x")}, ${node.style.getPropertyValue("--y")}) scale(1.18)`;
+        });
+        layer.querySelectorAll(".burst-ring").forEach(node => {
+          node.style.opacity = "0";
+          node.style.transform = `translate(${node.style.getPropertyValue("--x")}, ${node.style.getPropertyValue("--y")}) scale(1.34)`;
+        });
+        layer.querySelectorAll(".shard").forEach(node => {
+          const x = Number(node.dataset.x || 0);
+          const y = Number(node.dataset.y || 0);
+          const dx = Number(node.dataset.dx || 0);
+          const dy = Number(node.dataset.dy || 0);
+          const rot = Number(node.dataset.rot || 0);
+          node.style.opacity = "0";
+          node.style.transform = `translate(${x + dx}px, ${y + dy}px) rotate(${rot}deg) scale(.72)`;
+        });
+      });
+
+      window.setTimeout(() => layer.remove(), duration + 80);
+      return layer;
+    }
+
+    function animateClearing(matches) {
+      app.clearingCells = new Set(matches);
+      const duration = motionDuration(330);
+      spawnBurstEffects(matches, duration);
+      matches.forEach(index => {
+        const cell = el.board.querySelector(`[data-index="${index}"]`);
+        if (cell) cell.classList.add("is-clearing");
+      });
+      return wait(duration).then(() => {
+        app.clearingCells = new Set();
+      });
+    }
+
+    function nextFrame() {
+      return new Promise(resolve => requestAnimationFrame(() => resolve()));
+    }
+
+    async function animateFalling(moves) {
+      if (!moves.length) return;
+      await nextFrame();
+
+      const duration = motionDuration(320);
+      const boardRect = el.board.getBoundingClientRect();
+      const layer = document.createElement("div");
+      layer.className = "fall-layer";
+      el.board.appendChild(layer);
+
+      const tiles = [];
+      moves.forEach(move => {
+        const fromCell = el.board.querySelector(`[data-index="${move.from}"]`);
+        const toCell = el.board.querySelector(`[data-index="${move.to}"]`);
+        if (!fromCell || !toCell) return;
+
+        const fromRect = fromCell.getBoundingClientRect();
+        const toRect = toCell.getBoundingClientRect();
+        const tile = document.createElement("div");
+        tile.className = `falling-tile ${move.color}`;
+        tile.style.width = `${fromRect.width}px`;
+        tile.style.height = `${fromRect.height}px`;
+        tile.style.setProperty("--fall-duration", `${duration}ms`);
+        tile.style.transform = `translate(${fromRect.left - boardRect.left}px, ${fromRect.top - boardRect.top}px)`;
+        tile.dataset.targetX = String(toRect.left - boardRect.left);
+        tile.dataset.targetY = String(toRect.top - boardRect.top);
+        layer.appendChild(tile);
+        tiles.push(tile);
+      });
+
+      if (!tiles.length) {
+        layer.remove();
+        return;
+      }
+
+      await nextFrame();
+      tiles.forEach(tile => {
+        tile.style.transform = `translate(${tile.dataset.targetX}px, ${tile.dataset.targetY}px)`;
+      });
+      await wait(duration + 40);
+      layer.remove();
+    }
+
+    async function resolveBoardAnimated(board, width = app.width, height = app.height) {
+      let totalCleared = 0;
+      let chainCount = 0;
+      app.board = cloneBoard(board);
+      render();
+
+      while (true) {
+        const matches = findMatches(app.board, width, height);
+        if (matches.size === 0) break;
+
+        chainCount += 1;
+        totalCleared += matches.size;
+        await animateClearing(matches);
+
+        matches.forEach(index => {
+          app.board[index].color = null;
+        });
+
+        const plan = gravityPlan(app.board, width, height);
+        app.fallingSources = new Set(plan.moves.map(move => move.from));
+        render();
+        await animateFalling(plan.moves);
+        app.fallingSources = new Set();
+        app.board = plan.board;
+        render();
+      }
+
+      return { totalCleared, chainCount, cleared: totalCleared, chain: chainCount };
+    }
+
+    function simulateMove(board, a, b, width = app.width, height = app.height) {
+      if (!board[a] || !board[b]) return null;
+      if (!board[a].color || !board[b].color) return null;
+      if (!isAdjacent(a, b, width)) return null;
+
+      const next = cloneBoard(board);
+      swapColors(next, a, b);
+      const firstMatches = findMatches(next, width, height);
+      if (firstMatches.size === 0) return null;
+      const resolved = resolveBoard(next, width, height);
+      return {
+        from: a,
+        to: b,
+        board: next,
+        cleared: resolved.totalCleared,
+        chain: resolved.chainCount
+      };
+    }
+
+    function enumerateMoves(board, width = app.width, height = app.height) {
+      const moves = [];
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const current = idx(x, y, width);
+          const right = x + 1 < width ? idx(x + 1, y, width) : -1;
+          const down = y + 1 < height ? idx(x, y + 1, width) : -1;
+          if (right >= 0) {
+            const result = simulateMove(board, current, right, width, height);
+            if (result) moves.push(result);
+          }
+          if (down >= 0) {
+            const result = simulateMove(board, current, down, width, height);
+            if (result) moves.push(result);
+          }
+        }
+      }
+      moves.sort((a, b) => b.cleared - a.cleared || b.chain - a.chain || countBlocks(a.board) - countBlocks(b.board));
+      return moves;
+    }
+
+    function findSolution(board, width, height, maxDepth, maxNodes) {
+      const memo = new Map();
+      let nodes = 0;
+
+      function dfs(current, path) {
+        nodes += 1;
+        if (nodes > maxNodes) return null;
+        if (countBlocks(current) === 0) return path;
+        if (path.length >= maxDepth) return null;
+
+        const key = serialize(current);
+        if (memo.has(key) && memo.get(key) <= path.length) return null;
+        memo.set(key, path.length);
+
+        const moves = enumerateMoves(current, width, height).slice(0, 18);
+        for (const move of moves) {
+          const found = dfs(move.board, path.concat([{ from: move.from, to: move.to }]));
+          if (found) return found;
+        }
+        return null;
+      }
+
+      return dfs(cloneBoard(board), []);
+    }
+
+    function renderDifficulty() {
+      el.difficultyGrid.innerHTML = "";
+      Object.entries(DIFFICULTIES).forEach(([key, config]) => {
+        const button = document.createElement("button");
+        button.className = "difficulty";
+        button.type = "button";
+        button.dataset.difficulty = key;
+        button.setAttribute("aria-pressed", key === app.difficulty ? "true" : "false");
+        button.innerHTML = `<span><b>${config.name}</b><span>${config.desc}</span></span><em>${config.badge}</em>`;
+        button.addEventListener("click", () => {
+          app.difficulty = key;
+          renderDifficulty();
+        });
+        el.difficultyGrid.appendChild(button);
+      });
+    }
+
+    function showScreen(screen) {
+      const home = screen === "home";
+      el.homeScreen.classList.toggle("is-active", home);
+      el.gameScreen.classList.toggle("is-active", !home);
+      if (home) history.replaceState(null, "", buildUrl("#home"));
+      if (!home && location.hash !== "#result") history.replaceState(null, "", buildUrl("#game"));
+      applyFocusMode();
+    }
+
+    function buildUrl(hash) {
+      const query = app.focus ? `?focus=${encodeURIComponent(app.focus)}` : "";
+      return `${location.pathname}${query}${hash}`;
+    }
+
+    function startGame() {
+      const config = DIFFICULTIES[app.difficulty];
+      app.state = "generating";
+      el.startBtn.disabled = true;
+      el.startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path></svg>生成中`;
+
+      setTimeout(() => {
+        try {
+          const level = generateLevel(app.difficulty);
+          app.width = config.width;
+          app.height = config.height;
+          app.board = cloneBoard(level.board);
+          app.initialBoard = cloneBoard(level.board);
+          app.undoSnapshot = null;
+          app.initialSolution = level.solution ? level.solution.map(step => ({ ...step })) : [];
+          app.solutionQueue = level.solution ? level.solution.map(step => ({ ...step })) : [];
+          app.selected = null;
+          app.hintMove = null;
+          clearTransientVisuals();
+          app.moveCount = 0;
+          app.seed = level.seed;
+          app.logs = [`${config.name}关卡生成成功，已确认存在通关路径。`];
+          app.state = "playing";
+          app.remainingMoves = enumerateMoves(app.board).length;
+          showScreen("game");
+          updateMessage(`已生成${config.name}难度。目标是清空所有方块。`);
+          render();
+        } catch (error) {
+          app.state = "home";
+          updateHomeError(error.message);
+        } finally {
+          el.startBtn.disabled = false;
+          el.startBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>开始游戏`;
+        }
+      }, 80);
+    }
+
+    function updateHomeError(message) {
+      el.seedLabel.textContent = "生成失败";
+      const previous = document.querySelector(".home-error");
+      if (previous) previous.remove();
+      const error = document.createElement("p");
+      error.className = "home-error";
+      error.style.marginTop = "10px";
+      error.style.color = "var(--warn)";
+      error.style.fontWeight = "800";
+      error.textContent = message;
+      el.startBtn.insertAdjacentElement("afterend", error);
+    }
+
+    function updateMessage(html) {
+      el.message.innerHTML = html;
+    }
+
+    function render() {
+      document.documentElement.style.setProperty("--cols", String(app.width));
+      document.documentElement.style.setProperty("--rows", String(app.height));
+      el.moveCount.textContent = String(app.moveCount);
+      el.blockCount.textContent = String(countBlocks(app.board));
+      el.remainingMoves.textContent = String(app.remainingMoves);
+      el.seedLabel.textContent = app.seed ? `${DIFFICULTIES[app.difficulty].name} #${String(app.seed).slice(-5)}` : "未生成";
+      el.undoBtn.disabled = !app.undoSnapshot || app.state !== "playing";
+      el.hintBtn.disabled = app.state !== "playing" || app.remainingMoves <= 0;
+      el.restartBtn.disabled = !app.initialBoard.length || app.state === "resolving" || app.state === "generating";
+
+      renderBoard();
+      renderLogs();
+      renderResult();
+      applyFocusMode();
+    }
+
+    function renderBoard() {
+      el.board.innerHTML = "";
+      el.board.classList.toggle("is-pulsing", app.state === "resolving");
+      app.board.forEach((cell, index) => {
+        const c = coord(index);
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "cell";
+        div.dataset.index = String(index);
+        div.dataset.x = String(c.x);
+        div.dataset.y = String(c.y);
+        div.dataset.focus = "board_swap match_resolve";
+        div.setAttribute("role", "gridcell");
+
+        if (!cell.color) {
+          div.classList.add("empty");
+          div.disabled = true;
+          div.setAttribute("aria-label", `空格 ${c.x},${c.y}`);
+        } else {
+          div.classList.add("tile", cell.color);
+          div.setAttribute("aria-label", `${COLOR_NAMES[cell.color]}色方块 ${c.x},${c.y}`);
+          div.addEventListener("click", () => selectCell(index));
+        }
+
+        if (app.selected === index) div.classList.add("selected");
+        if (app.hintMove && (app.hintMove.from === index || app.hintMove.to === index)) div.classList.add("hint");
+        if (app.clearingCells.has(index)) div.classList.add("is-clearing");
+        if (app.fallingSources.has(index)) div.classList.add("is-fall-source");
+        el.board.appendChild(div);
+      });
+    }
+
+    function renderLogs() {
+      el.logList.innerHTML = "";
+      const items = app.logs.slice(-5).reverse();
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "log-item";
+        empty.textContent = "暂无操作。";
+        el.logList.appendChild(empty);
+        return;
+      }
+      items.forEach(text => {
+        const div = document.createElement("div");
+        div.className = "log-item";
+        div.textContent = text;
+        el.logList.appendChild(div);
+      });
+    }
+
+    function renderResult() {
+      const active = app.state === "won" || app.state === "failed";
+      el.resultModal.classList.toggle("is-active", active);
+      if (!active) return;
+      if (app.state === "won") {
+        el.resultTitle.textContent = "过关成功";
+        el.resultText.textContent = `你用 ${app.moveCount} 步清空了${DIFFICULTIES[app.difficulty].name}难度棋盘。`;
+      } else {
+        el.resultTitle.textContent = "挑战失败";
+        el.resultText.textContent = "当前棋盘仍有方块，但已经没有任何可形成消除的相邻交换。";
+      }
+      history.replaceState(null, "", buildUrl("#result"));
+    }
+
+    function selectCell(index) {
+      if (app.state !== "playing") return;
+      const cell = app.board[index];
+      if (!cell || !cell.color) return;
+      app.hintMove = null;
+
+      if (app.selected === null) {
+        app.selected = index;
+        updateMessage(`已选中${COLOR_NAMES[cell.color]}色方块，请选择相邻方块交换。`);
+        render();
+        return;
+      }
+
+      if (app.selected === index) {
+        app.selected = null;
+        updateMessage("已取消选中。");
+        render();
+        return;
+      }
+
+      if (!isAdjacent(app.selected, index)) {
+        app.selected = index;
+        updateMessage("已切换选中方块。只能与上下左右相邻方块交换。");
+        render();
+        return;
+      }
+
+      performMove(app.selected, index);
+    }
+
+    async function performMove(from, to) {
+      const before = cloneBoard(app.board);
+      const swapped = cloneBoard(app.board);
+      swapColors(swapped, from, to);
+      let result = findMatches(swapped).size ? { board: swapped, cleared: 0, chain: 0 } : null;
+      const fromCell = coord(from);
+      const toCell = coord(to);
+
+      if (!result) {
+        app.selected = null;
+        app.logs.push(`无效交换：(${fromCell.x},${fromCell.y}) 与 (${toCell.x},${toCell.y}) 未形成消除。`);
+        updateMessage("<strong>没有形成消除，已回退。</strong>");
+        render();
+        return;
+      }
+
+      app.state = "resolving";
+      app.board = result.board;
+      app.undoSnapshot = {
+        board: before,
+        moveCount: app.moveCount,
+        solutionQueue: app.solutionQueue.map(step => ({ ...step }))
+      };
+      app.moveCount += 1;
+      if (app.solutionQueue.length && ((app.solutionQueue[0].from === from && app.solutionQueue[0].to === to) || (app.solutionQueue[0].from === to && app.solutionQueue[0].to === from))) {
+        app.solutionQueue.shift();
+      } else {
+        app.solutionQueue = [];
+      }
+      app.selected = null;
+      app.hintMove = null;
+      updateMessage("交换有效，正在消除并播放下落。");
+      render();
+      result = await resolveBoardAnimated(app.board);
+      app.logs.push(`有效交换：消除 ${result.cleared} 个方块，连锁 ${result.chain} 次。`);
+      updateMessage(`本次消除 <strong>${result.cleared}</strong> 个方块，连锁 <strong>${result.chain}</strong> 次。`);
+      render();
+
+      finishResolution();
+    }
+
+    function finishResolution() {
+      const blocks = countBlocks(app.board);
+      if (blocks === 0) {
+        app.state = "won";
+        app.remainingMoves = 0;
+        app.logs.push("棋盘已清空，过关成功。");
+        render();
+        return;
+      }
+
+      app.remainingMoves = enumerateMoves(app.board).length;
+      if (app.remainingMoves === 0) {
+        app.state = "failed";
+        app.logs.push("当前棋盘无可行交换，挑战失败。");
+        render();
+        return;
+      }
+
+      app.state = "playing";
+      render();
+    }
+
+    function showHint() {
+      if (app.state !== "playing") return;
+      const fallback = enumerateMoves(app.board);
+      let move = null;
+      if (app.solutionQueue.length) {
+        const next = app.solutionQueue[0];
+        move = fallback.find(candidate =>
+          (candidate.from === next.from && candidate.to === next.to) ||
+          (candidate.from === next.to && candidate.to === next.from)
+        ) || null;
+      }
+      if (!move) move = fallback[0];
+      if (!move) {
+        app.remainingMoves = 0;
+        finishResolution();
+        return;
+      }
+      app.hintMove = move;
+      const a = coord(move.from);
+      const b = coord(move.to);
+      app.logs.push(`提示：尝试交换 (${a.x},${a.y}) 与 (${b.x},${b.y})。`);
+      updateMessage("已高亮一组下一步可交换位置。");
+      render();
+    }
+
+    function undoOnce() {
+      if (!app.undoSnapshot || app.state !== "playing") return;
+      app.board = cloneBoard(app.undoSnapshot.board);
+      app.moveCount = app.undoSnapshot.moveCount;
+      app.solutionQueue = app.undoSnapshot.solutionQueue.map(step => ({ ...step }));
+      app.undoSnapshot = null;
+      app.selected = null;
+      app.hintMove = null;
+      clearTransientVisuals();
+      app.remainingMoves = enumerateMoves(app.board).length;
+      app.logs.push("已撤销最近一次合法交换。");
+      updateMessage("已撤销一步。撤销只保留最近一次合法交换。");
+      render();
+    }
+
+    function restartLevel() {
+      if (!app.initialBoard.length) return;
+      app.board = cloneBoard(app.initialBoard);
+      app.undoSnapshot = null;
+      app.solutionQueue = app.initialSolution.map(step => ({ ...step }));
+      app.selected = null;
+      app.hintMove = null;
+      clearTransientVisuals();
+      app.moveCount = 0;
+      app.remainingMoves = enumerateMoves(app.board).length;
+      app.state = "playing";
+      app.logs = ["已恢复本局初始棋盘。"];
+      updateMessage("已重新开始本局。");
+      showScreen("game");
+      render();
+    }
+
+    function newLevel() {
+      el.resultModal.classList.remove("is-active");
+      startGame();
+    }
+
+    function applyFocusMode() {
+      document.body.classList.toggle("has-focus", Boolean(app.focus));
+      el.focusBanner.textContent = app.focus ? (FOCUS_LABELS[app.focus] || `专注模式：${app.focus}`) : "";
+      document.querySelectorAll(".focus-muted").forEach(node => node.classList.remove("focus-muted"));
+      if (!app.focus) return;
+
+      document.querySelectorAll("[data-focus]").forEach(node => {
+        const tokens = String(node.dataset.focus || "").split(/\s+/);
+        if (!tokens.includes(app.focus)) node.classList.add("focus-muted");
+      });
+    }
+
+    function bindEvents() {
+      el.startBtn.addEventListener("click", startGame);
+      el.hintBtn.addEventListener("click", showHint);
+      el.undoBtn.addEventListener("click", undoOnce);
+      el.restartBtn.addEventListener("click", restartLevel);
+      el.resultRestartBtn.addEventListener("click", restartLevel);
+      el.newLevelBtn.addEventListener("click", newLevel);
+      window.addEventListener("hashchange", () => {
+        if (location.hash === "#home") showScreen("home");
+        if (location.hash === "#game" && app.board.length) showScreen("game");
+      });
+    }
+
+    function init() {
+      renderDifficulty();
+      bindEvents();
+      if (app.focus) applyFocusMode();
+      if (location.hash === "#game" && app.board.length) showScreen("game");
+      else showScreen("home");
+      render();
+    }
+
+    window.__match3Demo = {
+      app,
+      generateLevel,
+      enumerateMoves,
+      findMatches,
+      findSolution,
+      verifySolution,
+      simulateMove,
+      gravityPlan,
+      applyGravity,
+      cloneBoard,
+      serialize,
+      countBlocks
+    };
+
+    init();
+  </script>
+</body>
+</html>
+
