@@ -358,20 +358,27 @@
       cursor: pointer;
       border: 1px solid rgba(255, 255, 255, .65);
       box-shadow: inset 0 2px 0 rgba(255, 255, 255, .58), inset 0 -4px 0 rgba(0, 0, 0, .12), 0 8px 14px rgba(23, 32, 42, .16);
+      background-color: #f5f1df;
+      background-position: center;
+      background-size: cover;
+      overflow: hidden;
     }
 
     .cell.tile::after {
       content: "";
       position: absolute;
-      inset: 14% 18% auto 18%;
-      height: 22%;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .34);
+      inset: 0;
+      border-radius: inherit;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, 0) 38%),
+        inset 0 0 0 2px rgba(255, 255, 255, .18);
+      pointer-events: none;
     }
 
-    .cell.red { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #ff8580 0%, var(--tile-red) 56%, #bd3636 100%); }
-    .cell.green { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #5ee4a5 0%, var(--tile-green) 58%, #13794c 100%); }
-    .cell.blue { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #76a6ff 0%, var(--tile-blue) 58%, #1d56b3 100%); }
+    .cell.red { background-image: url("assets/pieces/villagers.jpg"); }
+    .cell.green { background-image: url("assets/pieces/witch.jpg"); }
+    .cell.blue { background-image: url("assets/pieces/white-wolf-king.jpg"); }
+    .cell.yellow { background-image: url("assets/pieces/hidden-wolf.jpg"); }
 
     .cell.selected {
       border-color: #ffffff;
@@ -449,6 +456,7 @@
     .shard.red { background: linear-gradient(180deg, #ffb0a8 0%, var(--tile-red) 100%); }
     .shard.green { background: linear-gradient(180deg, #91ecc2 0%, var(--tile-green) 100%); }
     .shard.blue { background: linear-gradient(180deg, #abc8ff 0%, var(--tile-blue) 100%); }
+    .shard.yellow { background: linear-gradient(180deg, #ffe7a4 0%, #c98d2c 100%); }
 
     .fall-layer {
       position: absolute;
@@ -464,6 +472,9 @@
       border: 0;
       border-radius: 8px;
       box-shadow: inset 0 2px 0 rgba(255, 255, 255, .58), inset 0 -4px 0 rgba(0, 0, 0, .12), 0 8px 14px rgba(23, 32, 42, .16);
+      background-color: #f5f1df;
+      background-position: center;
+      background-size: cover;
       transition: transform var(--fall-duration, 300ms) cubic-bezier(.22, 1, .36, 1);
       will-change: transform;
     }
@@ -472,9 +483,10 @@
       display: none;
     }
 
-    .falling-tile.red { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #ff8580 0%, var(--tile-red) 56%, #bd3636 100%); }
-    .falling-tile.green { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #5ee4a5 0%, var(--tile-green) 58%, #13794c 100%); }
-    .falling-tile.blue { background: radial-gradient(circle at 35% 24%, rgba(255, 255, 255, .42), transparent 28%), linear-gradient(180deg, #76a6ff 0%, var(--tile-blue) 58%, #1d56b3 100%); }
+    .falling-tile.red { background-image: url("assets/pieces/villagers.jpg"); }
+    .falling-tile.green { background-image: url("assets/pieces/witch.jpg"); }
+    .falling-tile.blue { background-image: url("assets/pieces/white-wolf-king.jpg"); }
+    .falling-tile.yellow { background-image: url("assets/pieces/hidden-wolf.jpg"); }
 
     @media (prefers-reduced-motion: reduce) {
       .burst-flash,
@@ -719,8 +731,8 @@
   </div>
 
   <script>
-    const COLORS = ["red", "green", "blue"];
-    const COLOR_NAMES = { red: "红", green: "绿", blue: "蓝" };
+    const COLORS = ["red", "green", "blue", "yellow"];
+    const COLOR_NAMES = { red: "村民", green: "女巫", blue: "白狼王", yellow: "隐狼" };
     const FOCUS_LABELS = {
       start_game: "专注模式：开始并生成可解关卡",
       board_swap: "专注模式：相邻交换与无效回退",
@@ -945,7 +957,7 @@
       const board = emptyBoard(width, height);
       rows.forEach((row, y) => {
         row.split("").forEach((char, x) => {
-          board[idx(x, y, width)].color = char === "." ? null : ({ R: "red", G: "green", B: "blue" }[char] || null);
+          board[idx(x, y, width)].color = char === "." ? null : ({ R: "red", G: "green", B: "blue", Y: "yellow" }[char] || null);
         });
       });
       applyGravity(board, width, height);
@@ -955,8 +967,8 @@
     function variantRows(rows, seed) {
       const random = mulberry32(seed);
       const map = {};
-      shuffle(["R", "G", "B"], random).forEach((next, index) => {
-        map[["R", "G", "B"][index]] = next;
+      shuffle(["R", "G", "B", "Y"], random).forEach((next, index) => {
+        map[["R", "G", "B", "Y"][index]] = next;
       });
 
       let transformed = rows.map(row => row.split("").map(char => map[char] || char).join(""));
@@ -1569,7 +1581,7 @@
           div.setAttribute("aria-label", `空格 ${c.x},${c.y}`);
         } else {
           div.classList.add("tile", cell.color);
-          div.setAttribute("aria-label", `${COLOR_NAMES[cell.color]}色方块 ${c.x},${c.y}`);
+          div.setAttribute("aria-label", `${COLOR_NAMES[cell.color]}棋子 ${c.x},${c.y}`);
           div.addEventListener("click", () => selectCell(index));
         }
 
@@ -1621,7 +1633,7 @@
 
       if (app.selected === null) {
         app.selected = index;
-        updateMessage(`已选中${COLOR_NAMES[cell.color]}色方块，请选择相邻方块交换。`);
+        updateMessage(`已选中${COLOR_NAMES[cell.color]}棋子，请选择相邻棋子交换。`);
         render();
         return;
       }
